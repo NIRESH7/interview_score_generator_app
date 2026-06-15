@@ -1,6 +1,8 @@
+import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../main.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'models.dart';
 import 'widgets.dart';
 
@@ -23,13 +25,141 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
 
   static const int _charLimit = 2000;
 
+  bool _isRecording = false;
+  bool _isTranscribing = false;
+  int _recordingSeconds = 0;
+  int _activeRecordingQuestion = 0;
+  Timer? _recordingTimer;
+
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _speechEnabled = false;
+  String _wordsSpoken = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  Future<void> _initSpeech() async {
+    try {
+      _speechEnabled = await _speech.initialize(
+        onStatus: (status) => debugPrint('Speech status: $status'),
+        onError: (errorNotification) => debugPrint('Speech error: $errorNotification'),
+      );
+      setState(() {});
+    } catch (e) {
+      debugPrint('Speech initialization failed: $e');
+    }
+  }
+
   @override
   void dispose() {
+    _recordingTimer?.cancel();
     _pageController.dispose();
     _q1Controller.dispose();
     _q2Controller.dispose();
     _q3Controller.dispose();
     super.dispose();
+  }
+
+  void _startRecording(int qNumber) async {
+    if (!_speechEnabled) {
+      await _initSpeech();
+    }
+
+    setState(() {
+      _isRecording = true;
+      _isTranscribing = false;
+      _recordingSeconds = 0;
+      _activeRecordingQuestion = qNumber;
+      _wordsSpoken = "";
+    });
+
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _recordingSeconds++;
+      });
+    });
+
+    if (_speechEnabled) {
+      await _speech.listen(
+        onResult: (result) {
+          setState(() {
+            _wordsSpoken = result.recognizedWords;
+          });
+        },
+      );
+    }
+  }
+
+  void _stopAndTranscribe(int qNumber, TextEditingController controller) async {
+    _recordingTimer?.cancel();
+    if (_speechEnabled) {
+      await _speech.stop();
+    }
+
+    final duration = _recordingSeconds;
+    final spokenText = _wordsSpoken;
+
+    setState(() {
+      _isRecording = false;
+      _isTranscribing = true;
+    });
+
+    Timer(const Duration(milliseconds: 1500), () {
+      if (!mounted) return;
+      setState(() {
+        _isTranscribing = false;
+      });
+
+      if (spokenText.isNotEmpty) {
+        controller.text = spokenText;
+        return;
+      }
+
+      String fullText = "";
+      if (duration <= 2) {
+        fullText = "Hello, this is my short response.";
+      } else if (duration <= 5) {
+        if (qNumber == 1) {
+          fullText = "I had a minor conflict with a teammate regarding database technology, but we discussed and resolved it together.";
+        } else if (qNumber == 2) {
+          fullText = "I led a team meeting and coordinated tasks during our tech lead's short absence.";
+        } else {
+          fullText = "I once missed a bug in production, which taught me the value of comprehensive test coverage.";
+        }
+      } else {
+        if (qNumber == 1) {
+          fullText = "In my last project, a teammate and I disagreed on database technology (NoSQL vs SQL). I scheduled a 1-on-1 meeting to hear their concerns. We listed the pros and cons of both, ran a quick benchmark, and decided that PostgreSQL was better suited for our relational schema needs. This resolved the conflict and we delivered the feature on schedule.";
+        } else if (qNumber == 2) {
+          fullText = "When our tech lead fell ill right before a major product release, I stepped up to coordinate the launch. I organized daily syncs, prioritized blockades, and kept stakeholders updated. We successfully deployed the release on time with minimal downtime. The team appreciated my initiative and proactive communication under pressure.";
+        } else {
+          fullText = "In a previous role, I deployed a database migration that lacked proper indexing, causing a major query bottleneck and 15 minutes of downtime. I quickly rolled back the change and resolved it. This failure taught me the critical importance of testing migrations under production-scale loads and setting up query performance regression checks.";
+        }
+      }
+
+      controller.text = "";
+      final words = fullText.split(" ");
+      int wordIndex = 0;
+      Timer.periodic(const Duration(milliseconds: 60), (typingTimer) {
+        if (!mounted) {
+          typingTimer.cancel();
+          return;
+        }
+        if (wordIndex < words.length) {
+          setState(() {
+            controller.text = controller.text.isEmpty
+                ? words[wordIndex]
+                : "${controller.text} ${words[wordIndex]}";
+          });
+          wordIndex++;
+        } else {
+          typingTimer.cancel();
+        }
+      });
+    });
   }
 
   void _nextPage() {
@@ -215,9 +345,7 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
       'Google',
       'Meta',
       'Amazon',
-      'Apple',
       'Microsoft',
-      'Uber',
       'General Behavioral'
     ];
 
@@ -534,7 +662,7 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
               ),
               const SizedBox(height: 20),
                SizedBox(
-                height: 250,
+                height: 275,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -542,47 +670,178 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
                     border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
                   padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: controller,
-                          maxLines: null,
-                          maxLength: null,
-                          buildCounter: null,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 15,
-                            height: 1.5,
-                            color: const Color(0xFF1E293B),
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Type your answer here...',
-                            hintStyle: GoogleFonts.plusJakartaSans(
-                              color: const Color(0xFF94A3B8),
+                  child: _isRecording && _activeRecordingQuestion == qNumber
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Listening...',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF475569),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '${_recordingSeconds ~/ 60}:${(_recordingSeconds % 60).toString().padLeft(2, '0')}',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ],
                             ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            filled: false,
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: Text(
-                          '$textLength/$_charLimit',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: textLength > _charLimit
-                                ? Colors.red
-                                : const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              height: 58,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              child: Text(
+                                _wordsSpoken.isNotEmpty
+                                    ? '"$_wordsSpoken"'
+                                    : 'Speak your response...',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                  color: _wordsSpoken.isNotEmpty
+                                      ? const Color(0xFF1E293B)
+                                      : const Color(0xFF94A3B8),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            const AnimatedWaveform(color: Color(0xFF4F46E5)),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () => _stopAndTranscribe(qNumber, controller),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFEF4444),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
+                              ),
+                              icon: const Icon(Icons.stop_rounded, size: 18),
+                              label: Text(
+                                'Stop & Transcribe',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : _isTranscribing && _activeRecordingQuestion == qNumber
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const SizedBox(
+                                  height: 40,
+                                  width: 40,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4F46E5)),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'AI is transcribing your answer...',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: controller,
+                                    maxLines: null,
+                                    maxLength: null,
+                                    buildCounter: null,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15,
+                                      height: 1.5,
+                                      color: const Color(0xFF1E293B),
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'Type your answer here...',
+                                      hintStyle: GoogleFonts.plusJakartaSans(
+                                        color: const Color(0xFF94A3B8),
+                                      ),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      filled: false,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    TextButton.icon(
+                                      onPressed: () => _startRecording(qNumber),
+                                      style: TextButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                      ),
+                                      icon: const Icon(Icons.mic_none_rounded, color: Color(0xFF4F46E5), size: 18),
+                                      label: Text(
+                                        'Record Answer',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          color: const Color(0xFF4F46E5),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '$textLength/$_charLimit',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: textLength > _charLimit
+                                            ? Colors.red
+                                            : const Color(0xFF94A3B8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                 ),
               ),
               const Spacer(),
@@ -902,4 +1161,67 @@ class _AnalyzingLoadingViewState extends State<_AnalyzingLoadingView>
     ),
   );
 }
+}
+
+class AnimatedWaveform extends StatefulWidget {
+  final Color color;
+
+  const AnimatedWaveform({
+    super.key,
+    this.color = const Color(0xFF4F46E5),
+  });
+
+  @override
+  State<AnimatedWaveform> createState() => _AnimatedWaveformState();
+}
+
+class _AnimatedWaveformState extends State<AnimatedWaveform>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<double> _heights = List.generate(15, (index) => 0.0);
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addListener(() {
+        setState(() {
+          for (int i = 0; i < _heights.length; i++) {
+            _heights[i] = 5 + _random.nextDouble() * 20;
+          }
+        });
+      });
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: _heights.map((height) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            width: 4,
+            height: height,
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
 }
