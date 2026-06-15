@@ -1001,7 +1001,13 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
               OnboardingButton(
                 label: 'View Full Report',
                 onPressed: () {
-                  // Do nothing
+                  showDialog(
+                    context: context,
+                    builder: (context) => const AlertDialog(
+                      title: Text('CANDIDATE PROFILE'),
+                      content: Text('Detailed candidate analysis profile reports.'),
+                    ),
+                  );
                 },
               ),
             ],
