@@ -1,45 +1,31 @@
-# Miscellaneous
-*.class
-*.log
+# Python/Backend ignores
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/**/*.pyc
 *.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+*.log
 
-# IntelliJ related
+# IDE ignores
+.idea/
+.vscode/
 *.iml
 *.ipr
 *.iws
-.idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Flutter/Dart ignores
+interview_score_generator/.dart_tool/
+interview_score_generator/.flutter-plugins-dependencies
+interview_score_generator/.pub-cache/
+interview_score_generator/.pub/
+interview_score_generator/build/
+interview_score_generator/coverage/
+interview_score_generator/android/app/debug
+interview_score_generator/android/app/profile
+interview_score_generator/android/app/release
+interview_score_generator/ios/Flutter/.last_build_id
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+# Miscellaneous
+.DS_Store
+*.class
+*.swp
