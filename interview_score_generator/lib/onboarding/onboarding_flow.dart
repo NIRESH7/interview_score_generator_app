@@ -16,6 +16,9 @@ class OnboardingFlowPage extends StatefulWidget {
 }
 
 class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
+  // Use 'http://localhost:8000' for local development
+  static const String _apiBase = 'https://interview-score-generator-app.onrender.com';
+  
   final PageController _pageController = PageController();
   final OnboardingData _data = OnboardingData();
   int _currentStep = 0;
@@ -193,7 +196,7 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
 
     final companyMapped = _data.selectedCompany == 'General Behavioral' ? 'General' : _data.selectedCompany;
     final url = Uri.parse(
-      'http://localhost:8000/api/v1/questions/filter?'
+      '$_apiBase/api/v1/questions/filter?'
       'company=$companyMapped&'
       'role_family=${_data.selectedRoleFamily}&'
       'role_level=${_data.selectedExperience}&'
@@ -260,7 +263,7 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
     // Go to analyzing screen
     _nextPage();
 
-    final url = Uri.parse('http://localhost:8000/api/v1/assessment/evaluate');
+    final url = Uri.parse('$_apiBase/api/v1/assessment/evaluate');
     final payload = {
       "answers": [
         {
