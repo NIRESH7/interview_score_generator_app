@@ -301,103 +301,119 @@ class _OnboardingFlowPageState extends State<OnboardingFlowPage> {
         url,
         headers: {"Content-Type": "application/json"},
         body: json.encode(payload),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 45));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
         setState(() {
           _result = AssessmentResult.fromJson(data);
         });
+      } else {
+        throw Exception('Server responded with status code ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint('Failed to submit evaluation to backend: $e. Falling back to local mock evaluation.');
+      debugPrint('Failed to submit evaluation to backend: $e');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFEF2F2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.error_outline_rounded,
+                      color: Color(0xFFEF4444),
+                      size: 32,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'AI Evaluation Failed',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'The AI service could not complete the evaluation. Please check your backend connection, API keys configuration, or internet connectivity.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      color: const Color(0xFF64748B),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    constraints: const BoxConstraints(maxHeight: 80),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        e.toString(),
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF94A3B8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'OK',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        _prevPage();
+      }
     }
 
-    // Mock Fallback if HTTP call fails or response was error
-    if (_result == null) {
-      final Map<String, dynamic> mockJson = {
-        "overall_readiness_score": 96,
-        "overall_readiness_label": "Interview Ready",
-        "overall_band": "Exceptional",
-        "overall_signal": "Strong Hire",
-        "overall_total_score": 72,
-        "overall_max_score": 75,
-        "overall_strengths": ["Proactive unprompted problem identification", "End-to-end cross-functional ownership"],
-        "overall_improvements": ["Missing absolute fraud loss figure", "No explicit prioritisation rationale", "Weak strategic trade-off articulation"],
-        "results": [
-          {
-            "question_theme": "OWNERSHIP",
-            "target_company": _data.selectedCompany,
-            "role": _data.selectedRoleFamily,
-            "role_track": _data.selectedRoleTrack,
-            "role_level": _data.selectedExperience,
-            "readiness_score": 96,
-            "readiness_label": "Interview Ready",
-            "band": "Exceptional",
-            "signal": "Strong Hire",
-            "total_score": 24,
-            "parameters": {
-              "F1": {"name": "Situation Clarity", "score": 5},
-              "F2": {"name": "Personal Ownership", "score": 5},
-              "F3": {"name": "Quantified Result", "score": 4},
-              "D1": {"name": "Accountability Depth", "score": 5},
-              "D2": {"name": "Proactive Initiative", "score": 5}
-            },
-            "strengths": ["Proactive unprompted problem identification", "End-to-end cross-functional ownership"],
-            "improvements": ["Missing absolute fraud loss figure", "No explicit prioritisation rationale", "Weak strategic trade-off articulation"]
-          },
-          {
-            "question_theme": "CONFLICT_RESOLUTION",
-            "target_company": _data.selectedCompany,
-            "role": _data.selectedRoleFamily,
-            "role_track": _data.selectedRoleTrack,
-            "role_level": _data.selectedExperience,
-            "readiness_score": 96,
-            "readiness_label": "Interview Ready",
-            "band": "Exceptional",
-            "signal": "Strong Hire",
-            "total_score": 24,
-            "parameters": {
-              "F1": {"name": "Situation Clarity", "score": 5},
-              "F2": {"name": "Personal Ownership", "score": 5},
-              "F3": {"name": "Quantified Result", "score": 4},
-              "D1": {"name": "Empathy & Understanding", "score": 5},
-              "D2": {"name": "Resolution Quality", "score": 5}
-            },
-            "strengths": ["Constructive peer alignment", "Empathetic dialogue facilitation"],
-            "improvements": ["Minor stakeholder friction ambiguity", "Short-term alignment focus", "Lacked secondary feedback loop"]
-          },
-          {
-            "question_theme": "EXECUTION",
-            "target_company": _data.selectedCompany,
-            "role": _data.selectedRoleFamily,
-            "role_track": _data.selectedRoleTrack,
-            "role_level": _data.selectedExperience,
-            "readiness_score": 96,
-            "readiness_label": "Interview Ready",
-            "band": "Exceptional",
-            "signal": "Strong Hire",
-            "total_score": 24,
-            "parameters": {
-              "F1": {"name": "Situation Clarity", "score": 5},
-              "F2": {"name": "Personal Ownership", "score": 5},
-              "F3": {"name": "Quantified Result", "score": 4},
-              "D1": {"name": "Planning & Structure", "score": 5},
-              "D2": {"name": "Delivery Under Constraint", "score": 5}
-            },
-            "strengths": ["Structured project delivery", "Effective boundary management"],
-            "improvements": ["Unpacked complexity dimensions", "Limited risk-mitigation framing", "Vague resource constraints"]
-          }
-        ]
-      };
-      
-      setState(() {
-        _result = AssessmentResult.fromJson(mockJson);
-      });
+    if (_result != null) {
+      // Advance from analyzing screen to report screen
+      _nextPage();
     }
-
-    // Advance from analyzing screen to report screen
-    _nextPage();
   }
 
   @override

@@ -12,12 +12,12 @@ load_dotenv()
 
 app = FastAPI(title="FAANG Behavioral Interview Evaluator API")
 
-# Configure CORS
+# Configure CORS securely using regex to support random Flutter web ports
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
