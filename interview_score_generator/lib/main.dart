@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'onboarding/onboarding_flow.dart';
 
 void main() {
-  runApp(const InterviewApp());
+  runApp(const ProviderScope(child: InterviewApp()));
 }
 
 class InterviewApp extends StatelessWidget {

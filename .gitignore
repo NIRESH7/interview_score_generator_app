@@ -29,3 +29,8 @@ interview_score_generator/ios/Flutter/.last_build_id
 .DS_Store
 *.class
 *.swp
+
+# Documents & Sheets
+*.xlsx
+*.docx
+scoring_prompt_text.txt

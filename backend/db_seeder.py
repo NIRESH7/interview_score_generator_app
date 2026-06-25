@@ -1,9 +1,12 @@
 import os
 import openpyxl
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def seed_db():
-    excel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Question Bank - Behavior Round 1.xlsx"))
+    excel_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "Question Bank - Behavior Round 1.xlsx"))
     print(f"Reading excel from: {excel_path}")
     
     if not os.path.exists(excel_path):
@@ -31,17 +34,13 @@ def seed_db():
     # Find indices of required columns
     col_map = {name: i for i, name in enumerate(headers) if name}
     
-    # Map FreeAssessment columns to database format
-    # Columns in FreeAssessment:
-    # 'assessmentQuestionID', 'question', 'companyApplicable', 'roleFamily', 'roleLevel', 'roleTrack', 'assessmentMode', 'assessmentQuestionNumber', 'questionWeight', 'questionCompetency'
-    
     # Connect to MongoDB
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     print(f"Connecting to MongoDB at {mongo_uri}")
     client = MongoClient(mongo_uri)
     db = client["interview_db"]
     
-    # Drop existing collection to reseed clean data
+    # Drop existing questions collection to reseed clean data
     db["questions"].drop()
     print("Dropped existing questions collection")
     
@@ -87,6 +86,22 @@ def seed_db():
         print(f"Successfully inserted {len(result.inserted_ids)} assessment questions into MongoDB!")
     else:
         print("No records found to insert.")
+        
+    # Seed prompt
+    prompt_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "scoring_prompt_text.txt"))
+    print(f"Reading scoring prompt from: {prompt_path}")
+    if os.path.exists(prompt_path):
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            prompt_content = f.read()
+        db["prompts"].drop()
+        print("Dropped existing prompts collection")
+        db["prompts"].insert_one({
+            "key": "scoring_prompt",
+            "content": prompt_content
+        })
+        print("Successfully inserted scoring prompt into MongoDB!")
+    else:
+        print(f"Scoring prompt file not found at {prompt_path}")
         
     client.close()
 

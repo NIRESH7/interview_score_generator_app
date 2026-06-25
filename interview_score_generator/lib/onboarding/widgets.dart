@@ -19,7 +19,7 @@ class OnboardingButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: 48,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -29,22 +29,22 @@ class OnboardingButton extends StatelessWidget {
           disabledForegroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: isLoading
             ? const SizedBox(
-                height: 24,
-                width: 24,
+                height: 20,
+                width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 3,
+                  strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
             : Text(
                 label,
                 style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -0.1,
                 ),
@@ -367,5 +367,68 @@ class _SemiCircularGaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _SemiCircularGaugePainter oldDelegate) {
     return oldDelegate.score != score;
+  }
+}
+
+class AnimatedWaveform extends StatefulWidget {
+  final Color color;
+
+  const AnimatedWaveform({
+    super.key,
+    this.color = const Color(0xFF4F46E5),
+  });
+
+  @override
+  State<AnimatedWaveform> createState() => _AnimatedWaveformState();
+}
+
+class _AnimatedWaveformState extends State<AnimatedWaveform>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  final List<double> _heights = List.generate(15, (index) => 0.0);
+  final math.Random _random = math.Random();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..addListener(() {
+        setState(() {
+          for (int i = 0; i < _heights.length; i++) {
+            _heights[i] = 5 + _random.nextDouble() * 20;
+          }
+        });
+      });
+    _controller.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 30,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: _heights.map((height) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            width: 4,
+            height: height,
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }).toList(),
+      ),
+    );
   }
 }
