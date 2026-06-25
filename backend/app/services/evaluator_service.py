@@ -61,8 +61,20 @@ def get_theme_parameters(raw_competency: str):
 
 def get_system_prompt() -> str:
     """
-    Attempts to read scoring_prompt_text.txt, or falls back to an embedded version of the FAANG scoring guidelines.
+    Attempts to read the scoring prompt from MongoDB prompts collection,
+    falling back to local files or the embedded version if needed.
     """
+    try:
+        from pymongo import MongoClient
+        mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=2000)
+        db = client["interview_db"]
+        doc = db["prompts"].find_one({"key": "scoring_prompt"})
+        if doc and doc.get("content"):
+            return doc["content"]
+    except Exception as e:
+        logger.error(f"Error fetching scoring prompt from MongoDB: {e}")
+
     # Search multiple potential directories to find the scoring_prompt_text.txt file
     possible_paths = [
         os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "scoring_prompt_text.txt")),
@@ -193,20 +205,27 @@ Return only valid JSON. No other text.
             readiness_score = round((total_score / 25) * 100)
             data["readiness_score"] = readiness_score
             
+            # Map readiness_label based on readiness_score (0-100)
             if readiness_score >= 80:
                 data["readiness_label"] = "Interview Ready"
-                data["band"] = "Exceptional"
-                data["signal"] = "Strong Hire"
             elif readiness_score >= 60:
                 data["readiness_label"] = "Almost There"
-                data["band"] = "Solid"
-                data["signal"] = "Lean Hire"
             elif readiness_score >= 40:
                 data["readiness_label"] = "Not Bad! Keep Improving"
+            else:
+                data["readiness_label"] = "Needs More Practice"
+                
+            # Map band and signal based on total_score (0-25)
+            if 21 <= total_score <= 25:
+                data["band"] = "Exceptional"
+                data["signal"] = "Strong Hire"
+            elif 16 <= total_score <= 20:
+                data["band"] = "Solid"
+                data["signal"] = "Lean Hire"
+            elif 11 <= total_score <= 15:
                 data["band"] = "Developing"
                 data["signal"] = "No Hire with coaching"
             else:
-                data["readiness_label"] = "Needs More Practice"
                 data["band"] = "Weak"
                 data["signal"] = "No Hire"
                 
@@ -305,20 +324,27 @@ Return only valid JSON. No other text.
             readiness_score = round((total_score / 25) * 100)
             data["readiness_score"] = readiness_score
             
+            # Map readiness_label based on readiness_score (0-100)
             if readiness_score >= 80:
                 data["readiness_label"] = "Interview Ready"
-                data["band"] = "Exceptional"
-                data["signal"] = "Strong Hire"
             elif readiness_score >= 60:
                 data["readiness_label"] = "Almost There"
-                data["band"] = "Solid"
-                data["signal"] = "Lean Hire"
             elif readiness_score >= 40:
                 data["readiness_label"] = "Not Bad! Keep Improving"
+            else:
+                data["readiness_label"] = "Needs More Practice"
+                
+            # Map band and signal based on total_score (0-25)
+            if 21 <= total_score <= 25:
+                data["band"] = "Exceptional"
+                data["signal"] = "Strong Hire"
+            elif 16 <= total_score <= 20:
+                data["band"] = "Solid"
+                data["signal"] = "Lean Hire"
+            elif 11 <= total_score <= 15:
                 data["band"] = "Developing"
                 data["signal"] = "No Hire with coaching"
             else:
-                data["readiness_label"] = "Needs More Practice"
                 data["band"] = "Weak"
                 data["signal"] = "No Hire"
                 
@@ -382,20 +408,28 @@ def evaluate_answers(answers: List[Any]) -> Dict[str, Any]:
     avg_readiness = int(sum(r["readiness_score"] for r in results) / len(results)) if results else 0
     
     # Derive overall band and label
+    # overall_label based on average readiness score
     if avg_readiness >= 80:
         overall_label = "Interview Ready"
-        overall_band = "Exceptional"
-        overall_signal = "Strong Hire"
     elif avg_readiness >= 60:
         overall_label = "Almost There"
-        overall_band = "Solid"
-        overall_signal = "Lean Hire"
     elif avg_readiness >= 40:
         overall_label = "Not Bad! Keep Improving"
+    else:
+        overall_label = "Needs More Practice"
+        
+    # overall_band and overall_signal based on average total score per question
+    avg_total_score = total_score / len(results) if results else 0
+    if 21 <= avg_total_score <= 25:
+        overall_band = "Exceptional"
+        overall_signal = "Strong Hire"
+    elif 16 <= avg_total_score <= 20:
+        overall_band = "Solid"
+        overall_signal = "Lean Hire"
+    elif 11 <= avg_total_score <= 15:
         overall_band = "Developing"
         overall_signal = "No Hire with coaching"
     else:
-        overall_label = "Needs More Practice"
         overall_band = "Weak"
         overall_signal = "No Hire"
         
