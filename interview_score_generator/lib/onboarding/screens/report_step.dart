@@ -62,18 +62,6 @@ class _AnalyzingStepState extends State<AnalyzingStep> {
     return Container(
       width: 160,
       height: 160,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4F46E5).withOpacity(0.08),
-            blurRadius: 24,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
       child: Image.asset(
         'assets/images/robot_analyzing.png',
         fit: BoxFit.contain,
