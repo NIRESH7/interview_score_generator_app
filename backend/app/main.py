@@ -12,10 +12,13 @@ load_dotenv()
 
 app = FastAPI(title="FAANG Behavioral Interview Evaluator API")
 
-# Configure CORS securely using regex to support random Flutter web ports
+# Allow local dev (Flutter web) and deployed Netlify frontends
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origin_regex=(
+        r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+        r"|^https://[a-z0-9-]+\.netlify\.app$"
+    ),
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
